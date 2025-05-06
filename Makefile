@@ -1,7 +1,7 @@
 # Compiler and flags
 CC = gcc
 CFLAGS = -Wall -g 
-LDFLAGS = -lSDL3
+LDFLAGS = -lSDL3 -lSDL3_ttf
 
 # Source and target
 SRC = main.c

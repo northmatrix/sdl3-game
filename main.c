@@ -1,16 +1,21 @@
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_render.h>
-#include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_surface.h>
+#include <stdio.h>
+#include <string.h>
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
 #define WIDTH 640
 #define HEIGHT 480
 
 #define BIRD 50
 #define BIRD_X_OFFSET 75
-#define JUMP 0.15
-#define GRAVITY 0.9
-#define BUTTON_DELAY 100
+#define JUMP 0.4
+#define GRAVITY 2.0
+#define BUTTON_DELAY 200
 
 typedef struct {
   float x_offset;
@@ -22,16 +27,51 @@ typedef struct {
   Pipe pipes[2];
   float acceleration;
   bool is_alive;
+  int score;
 } GameCtx;
 
 typedef struct {
   SDL_Window *window;
   SDL_Renderer *renderer;
+  TTF_Font *font;
   GameCtx *game_context;
   double last_step;
   uint64_t last_press_time;
 } AppState;
 
+void draw_game_over(SDL_Renderer *renderer, TTF_Font *font) {
+  SDL_Color white = {255, 255, 255, 255};
+  char *msg = "Press (R) to restart.";
+  SDL_Surface *surface = TTF_RenderText_Solid(font, msg, strlen(msg), white);
+  if (!surface) {
+    return;
+  }
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_FRect dst = {(WIDTH / 2.0) - (surface->w / 2.0),
+                   (HEIGHT / 2.0) - (surface->h / 2.0), surface->w, surface->h};
+  SDL_DestroySurface(surface);
+  if (!texture)
+    return;
+  SDL_RenderTexture(renderer, texture, NULL, &dst);
+  SDL_DestroyTexture(texture);
+}
+
+void draw_score(SDL_Renderer *renderer, int score, TTF_Font *font) {
+  SDL_Color white = {255, 255, 255, 255};
+  char buf[20];
+  snprintf(buf, sizeof(buf), "Score %d", score);
+  SDL_Surface *surface = TTF_RenderText_Solid(font, buf, strlen(buf), white);
+  if (!surface) {
+    return;
+  }
+  SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_FRect dst = {0, HEIGHT - surface->h, surface->w, surface->h};
+  SDL_DestroySurface(surface);
+  if (!texture)
+    return;
+  SDL_RenderTexture(renderer, texture, NULL, &dst);
+  SDL_DestroyTexture(texture);
+}
 void init_game_context(GameCtx **game_context) {
   *game_context = SDL_calloc(1, sizeof(GameCtx));
   if (*game_context) {
@@ -91,7 +131,6 @@ void draw_game_context(SDL_Renderer *renderer, GameCtx *game_context) {
     draw_pipe(renderer, game_context->pipes[i].x_offset,
               game_context->pipes[i].y_offset);
   }
-  SDL_RenderPresent(renderer);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -111,6 +150,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
     return SDL_APP_FAILURE;
   }
+  if (!TTF_Init()) {
+    SDL_Log("TTF_Init Error: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
   as->last_step = SDL_GetPerformanceCounter();
   init_game_context(&as->game_context);
   as->game_context->is_alive = true;
@@ -119,6 +162,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   as->game_context->pipes[0].y_offset = 200.0;
   as->game_context->pipes[1].x_offset = WIDTH + WIDTH * 0.25;
   as->game_context->pipes[1].y_offset = 400.0;
+  as->game_context->score = 0;
+  as->font = TTF_OpenFont("Roboto-Regular.ttf", 28);
+  if (!as->font) {
+    SDL_Log("Failed to load font: %s", SDL_GetError());
+    return SDL_APP_FAILURE;
+  }
   SDL_SetRenderDrawColor(as->renderer, 26, 26, 26, 1);
   as->game_context->acceleration = -JUMP;
   SDL_RenderClear(as->renderer);
@@ -167,13 +216,12 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     // Movement
     as->game_context->acceleration += GRAVITY * deltaTime;
     as->game_context->bird_offset += as->game_context->acceleration;
-    as->last_step = SDL_GetPerformanceCounter();
     for (int i = 0; i < 2; i++) {
       as->game_context->pipes[i].x_offset -= BIRD * deltaTime * 8;
       if (as->game_context->pipes[i].x_offset + BIRD < 0) {
         as->game_context->pipes[i].x_offset += WIDTH + BIRD;
         as->game_context->pipes[i].y_offset =
-            (HEIGHT / 2.0) + (SDL_rand(HEIGHT / 3.0));
+            (HEIGHT / 2.0) + (SDL_rand((int)(HEIGHT / 3.0)));
       }
     }
     // Collision
@@ -182,11 +230,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     }
     // Drawing
     draw_game_context(as->renderer, as->game_context);
+    draw_score(as->renderer, as->game_context->score, as->font);
   } else {
     SDL_SetRenderDrawColor(as->renderer, 26, 26, 26, 1);
     SDL_RenderClear(as->renderer);
-    SDL_RenderPresent(as->renderer);
+    draw_game_over(as->renderer, as->font);
   }
+  SDL_RenderPresent(as->renderer);
   return SDL_APP_CONTINUE;
 }
 
