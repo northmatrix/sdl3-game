@@ -13,9 +13,9 @@
 
 #define BIRD 50
 #define BIRD_X_OFFSET 75
-#define JUMP 0.4
-#define GRAVITY 2.0
-#define BUTTON_DELAY 200
+#define JUMP 0.25
+#define GRAVITY 1.5
+#define BUTTON_DELAY 100
 
 typedef struct {
   float x_offset;
@@ -25,7 +25,7 @@ typedef struct {
 typedef struct {
   float bird_offset;
   Pipe pipes[2];
-  float acceleration;
+  float velcoity;
   bool is_alive;
   int score;
 } GameCtx;
@@ -169,7 +169,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     return SDL_APP_FAILURE;
   }
   SDL_SetRenderDrawColor(as->renderer, 26, 26, 26, 1);
-  as->game_context->acceleration = -JUMP;
+  as->game_context->velcoity = -JUMP;
   SDL_RenderClear(as->renderer);
   SDL_RenderPresent(as->renderer);
 
@@ -188,7 +188,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   if (event->type == SDL_EVENT_KEY_DOWN) {
     if (event->key.scancode == SDL_SCANCODE_SPACE &&
         delta_time > BUTTON_DELAY) {
-      as->game_context->acceleration = -JUMP;
+      as->game_context->velcoity = -JUMP;
       as->last_press_time = current_time;
     }
     if (event->key.scancode == SDL_SCANCODE_R) {
@@ -198,7 +198,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
       as->game_context->pipes[1].y_offset = 400.0;
       as->game_context->is_alive = true;
       as->game_context->bird_offset = HEIGHT / 2.0 - BIRD / 2.0;
-      as->game_context->acceleration = -JUMP;
+      as->game_context->velcoity = -JUMP;
+      as->game_context->score = 0;
     }
   }
 
@@ -214,14 +215,15 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   as->last_step = now;
   if (as->game_context->is_alive) {
     // Movement
-    as->game_context->acceleration += GRAVITY * deltaTime;
-    as->game_context->bird_offset += as->game_context->acceleration;
+    as->game_context->velcoity += GRAVITY * deltaTime;
+    as->game_context->bird_offset += as->game_context->velcoity;
     for (int i = 0; i < 2; i++) {
       as->game_context->pipes[i].x_offset -= BIRD * deltaTime * 8;
       if (as->game_context->pipes[i].x_offset + BIRD < 0) {
         as->game_context->pipes[i].x_offset += WIDTH + BIRD;
         as->game_context->pipes[i].y_offset =
             (HEIGHT / 2.0) + (SDL_rand((int)(HEIGHT / 3.0)));
+        as->game_context->score += 1;
       }
     }
     // Collision
