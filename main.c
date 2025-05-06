@@ -13,9 +13,9 @@
 
 #define BIRD 50
 #define BIRD_X_OFFSET 75
-#define JUMP 0.25
-#define GRAVITY 1.5
-#define BUTTON_DELAY 100
+#define JUMP 0.2
+#define GRAVITY 1.2
+#define BUTTON_DELAY 16
 
 typedef struct {
   float x_offset;
@@ -242,4 +242,23 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
   return SDL_APP_CONTINUE;
 }
 
-void SDL_AppQuit(void *appstate, SDL_AppResult result) {}
+void SDL_AppQuit(void *appstate, SDL_AppResult result) {
+  AppState *as = (AppState *)(appstate);
+  if (as) {
+    if (as->font) {
+      TTF_CloseFont(as->font);
+    }
+    if (as->renderer) {
+      SDL_DestroyRenderer(as->renderer);
+    }
+    if (as->window) {
+      SDL_DestroyWindow(as->window);
+    }
+    if (as->game_context) {
+      SDL_free(as->game_context);
+    }
+    SDL_free(as);
+  }
+  TTF_Quit();
+  SDL_Quit();
+}
