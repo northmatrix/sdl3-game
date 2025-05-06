@@ -163,7 +163,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
   as->game_context->pipes[1].x_offset = WIDTH + WIDTH * 0.25;
   as->game_context->pipes[1].y_offset = 400.0;
   as->game_context->score = 0;
-  as->font = TTF_OpenFont("Roboto-Regular.ttf", 28);
+  as->font = TTF_OpenFont("Tiny5-Regular.ttf", 28);
   if (!as->font) {
     SDL_Log("Failed to load font: %s", SDL_GetError());
     return SDL_APP_FAILURE;
